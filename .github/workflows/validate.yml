@@ -1,0 +1,53 @@
+name: validate
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Python syntax
+        run: python -m py_compile skills/agent-session-progress/scripts/agent_progress.py
+      - name: Secret/private path scan
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          needles = [
+              'gh' + 'o_',
+              'sk-' + '[token-like]',
+              'xox' + '[slack-token-like]',
+              'AK' + 'IA',
+              '/Users/' + 'prasithgovin',
+              'Job' + 'Leap',
+              'Recruit' + 'ics',
+          ]
+          bad = []
+          for path in Path('.').rglob('*'):
+              if path.is_dir() or '.git' in path.parts:
+                  continue
+              try:
+                  text = path.read_text(errors='ignore')
+              except Exception:
+                  continue
+              for needle in needles:
+                  if '[token-like]' in needle:
+                      import re
+                      if re.search(r'sk-[A-Za-z0-9]{20,}', text):
+                          bad.append((str(path), 'openai-like-token'))
+                  elif '[slack-token-like]' in needle:
+                      import re
+                      if re.search(r'xox[baprs]-', text):
+                          bad.append((str(path), 'slack-like-token'))
+                  elif needle in text:
+                      bad.append((str(path), needle))
+          if bad:
+              for path, needle in bad:
+                  print(f'{path}: {needle}')
+              raise SystemExit(1)
+          PY
