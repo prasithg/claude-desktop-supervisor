@@ -49,7 +49,7 @@ python3 scripts/agent_progress.py --agent codex --limit 10
 - active: fresh transcript/metadata and latest events include assistant/tool activity;
 - recently-active: recent update but needs semantic tail verification;
 - idle-or-done: stale transcript, final assistant text, or prompt-ready state;
-- blocked-or-needs-review: latest events mention permission, approval, error, waiting, or input;
+- blocked-or-needs-review: latest events mention permission, approval, error, failed command, or waiting for user. Avoid generic fields like `usage.input_tokens`; those are normal on completed turns and should not create blockers;
 - unknown: missing/unparseable evidence.
 
 Always present these as best-effort signals, not certainty.

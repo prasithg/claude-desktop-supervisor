@@ -55,8 +55,11 @@ def classify(age: float | None, latest: dict[str, Any] | None) -> str:
         return "active"
     if not latest:
         return "unknown"
-    text = json.dumps(latest, default=str).lower()
-    if any(x in text for x in ["permission", "approval", "error", "failed", "waiting", "input"]):
+    # Keep this deliberately conservative. The compact latest summary includes
+    # fields such as usage.input_tokens, so generic words like "input" create
+    # false blockers for normal completed assistant turns.
+    text = json.dumps({k: v for k, v in latest.items() if k != "usage"}, default=str).lower()
+    if any(x in text for x in ["permission", "approval", "error", "failed", "waiting"]):
         return "blocked-or-needs-review"
     if age <= 300:
         return "recently-active"
