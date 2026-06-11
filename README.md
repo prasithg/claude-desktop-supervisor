@@ -1,14 +1,16 @@
 # Claude Desktop Supervisor
 
-A practical supervision pattern for long-running Claude Desktop, Claude Code, and Fable-style coding sessions.
+A practical pattern for letting Hermes sit in the human operator seat for long-running Claude Desktop, Claude Code, and Fable-style coding sessions.
 
-These models can run for a long time and do useful work. The hard part is that you, the human, are not always sitting there when they stop, get confused, finish a unit, wait for input, or burn through context. This repo packages the workflow I use locally: push a batch of work into a Claude/Fable lane, then have Hermes watch the lane, check whether it is actually running, continue it when appropriate, and report when human attention is needed.
+Claude Code, Claude Desktop, and Fable-style long-context sessions can do real work. But a human still usually has to babysit the loop: check whether the model is running, read the output, decide whether the next prompt is safe, preserve the handoff, verify git/tests, and take over when judgment is needed.
 
-This is not a polished background daemon yet. It is an early public extraction of a working agent-ops loop: logs first, UI only when needed, git/tests for truth, and explicit account boundaries for public release actions.
+This repo packages the workflow I use locally: push a batch of work into a Claude/Fable lane, then have Hermes watch the same app/history a human would, check whether it is actually running, continue it when appropriate, and hand control back to the human when needed.
+
+This is not a polished background daemon yet. It is an early public extraction of a working agent-ops loop: logs first, UI for action, git/tests for truth, and human takeover at any time.
 
 ## The problem
 
-Long-running coding agents need supervision around the actual model call.
+Long-running coding agents need an operator around the actual model call.
 
 Claude Desktop, Claude Code, and Fable-style 1M-context sessions are good at staying with a large task. But in practice a human operator still needs to answer a bunch of operational questions:
 
@@ -18,32 +20,36 @@ Claude Desktop, Claude Code, and Fable-style 1M-context sessions are good at sta
 - Is the latest visible summary current, or is it from an old handoff session?
 - Is the context window still useful, or should this be closed out and continued fresh?
 - Did the code really change, tests pass, and git state make sense?
+- Can the human take over now and hand control back to Hermes later?
 - Which identity is allowed to push, publish, create repos, or post externally?
 
-Most simple monitors miss these because they look at only one layer. The Desktop UI can be misleading. Logs can be stale. A summary can say "blocked" even after the blocker was resolved. A typed prompt can look like progress even though the model never started.
+Most simple monitors miss these because they look at only one layer. The Desktop UI can be misleading. Logs can be stale. A summary can say "blocked" even after the blocker was resolved. A typed prompt can look like progress even though the model never started. The useful loop is not just monitoring; it is operating the lane the way a human would, while preserving enough state that the human can step back in.
 
 ## The pattern
 
 ```text
-Claude/Fable task lane
+human starts or delegates work
+        ↓
+Claude/Fable task lane does the coding
         ↓
 local logs + metadata + exact repo/session mapping
         ↓
-Hermes supervisor
+Hermes supervisor in the operator seat
         ↓
 state classifier: running / idle / waiting / blocked / done / unknown
         ↓
 Computer Use only when the UI needs verification or action
         ↓
-continue, close out, ask human, or verify repo/tests
+continue, review, close out, ask human, or verify repo/tests
         ↓
-report and hand off with the right account boundary
+human can take over or hand the lane back to Hermes
 ```
 
 The division of labor is simple:
 
 - Claude/Fable does the local long-running work.
-- Hermes supervises state, continuation, verification, and handoffs.
+- Hermes operates the lane: state, continuation, review, verification, and handoffs.
+- The human can take over, redirect, and hand control back.
 - The human/Hermes-controlled personal account owns public release actions.
 
 ## What this helps with
@@ -56,6 +62,8 @@ Examples:
 - Run a long Fable/Desktop session against a repo and have Hermes detect idle/done/blocked states.
 - Have Hermes submit continuation prompts only after verifying that the lane is not already running.
 - Close out high-context sessions with a useful handoff instead of letting them drift forever.
+- Let another agent operate Claude Code through the same local app workflow a human uses, preserving app history and account/session boundaries.
+- Let the human jump back in, inspect the preserved state, redirect, and hand the lane back to Hermes.
 - Keep public GitHub publishing separate from a worker lane that may be logged into a different account.
 
 ## Prerequisites
@@ -88,9 +96,10 @@ They assume the supervisor may need to:
 - loop when appropriate, but only with checks between iterations;
 - avoid prompt-spamming a lane that is already running;
 - close out with a handoff when context is high or the work unit is complete;
+- preserve enough history/state that the human can take over and then hand the lane back;
 - ask the human only when the next action has real ambiguity or external side effects.
 
-The important bit is not "keep prompting forever." The important bit is a guarded loop: observe, classify, act, verify, then decide whether another iteration is warranted.
+The important bit is not "keep prompting forever." The important bit is a guarded operator loop: observe, classify, act, verify, then decide whether another iteration is warranted.
 
 ## What is included
 
