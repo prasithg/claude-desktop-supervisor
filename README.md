@@ -2,9 +2,11 @@
 
 A practical pattern for letting Hermes sit in the human operator seat for long-running Claude Desktop, Claude Code, and Fable-style coding sessions.
 
-Claude Code, Claude Desktop, and Fable-style long-context sessions can do real work. But a human still usually has to babysit the loop: check whether the model is running, read the output, decide whether the next prompt is safe, preserve the handoff, verify git/tests, and take over when judgment is needed.
+Claude Code, Claude Desktop, and Fable-style long-context sessions can do real work. Here "Fable-style" means a very long-context Claude lane (for example a 1M-context coding session) that can complete a large work unit before needing review, handoff, or a fresh session. But a human still usually has to operate the loop: check whether the model is running, read the output, decide whether the next prompt is safe, preserve the handoff, verify git/tests, and take over when judgment is needed.
 
-This repo packages the workflow I use locally: push a batch of work into a Claude/Fable lane, then have Hermes watch the same app/history a human would, check whether it is actually running, continue it when appropriate, and hand control back to the human when needed.
+This repo packages the workflow I use locally with [Hermes Agent](https://github.com/NousResearch/hermes-agent): push a batch of work into a Claude/Fable lane, then have a supervisor agent watch the same app/history a human would, check whether it is actually running, continue it when appropriate, and hand control back to the human when needed.
+
+This does not bypass product limits, grant extra access, share credentials, or remove the user's responsibility to follow the terms and policies of the apps and accounts they operate. The intended boundary is local/reversible work first, with explicit human/Hermes scope for public or external actions.
 
 This is not a polished background daemon yet. It is an early public extraction of a working agent-ops loop: logs first, UI for action, git/tests for truth, and human takeover at any time.
 
@@ -75,7 +77,7 @@ Recommended setup:
 - Hermes Computer Use enabled, with macOS Accessibility and Screen Recording permissions granted.
 - Claude Desktop and/or Claude Code installed.
 - For Fable-style long-running runs, a Claude Max plan is strongly recommended. These workflows can burn tokens quickly, especially with large context windows and repeated tool use.
-- Python 3.
+- Python 3.10+; helper scripts are stdlib-only (no `pip install` needed).
 - A git repo or local project for the worker lane to operate on.
 
 Optional but useful:
@@ -105,9 +107,15 @@ The important bit is not "keep prompting forever." The important bit is a guarde
 
 ```text
 skills/
+  manifest.json
   claude-desktop-babysitting/SKILL.md
   agent-session-progress/SKILL.md
   agent-session-progress/scripts/agent_progress.py
+
+scripts/
+  install-hermes-skills.sh
+  validate.sh
+  smoke_agent_progress.py
 
 templates/
   failsafe-watcher-cron-prompt.md
@@ -118,10 +126,9 @@ docs/
   failure-modes.md
   context-lifecycle.md
   account-boundaries.md
+  public-launch-framing.md
   demo-runbook.md
   launch-checklist.md
-  product-video-tooling.md
-  social-and-video-launch-pack.md
 
 examples/
   sample-watcher-cron.md
@@ -131,7 +138,15 @@ assets/
   architecture.html
 ```
 
-## Quickstart
+## 5-minute quickstart
+
+Clone and validate the repo:
+
+```bash
+git clone https://github.com/prasithg/claude-desktop-supervisor.git
+cd claude-desktop-supervisor
+bash scripts/validate.sh
+```
 
 Run the read-only progress helper:
 
@@ -139,7 +154,53 @@ Run the read-only progress helper:
 python3 skills/agent-session-progress/scripts/agent_progress.py --agent claude --limit 10 --json
 ```
 
-The helper summarizes local Claude/Codex activity without dumping raw transcript text.
+The helper summarizes local Claude/Codex activity without dumping raw transcript text. Example shape:
+
+```json
+[
+  {
+    "agent": "claude-code",
+    "status": "idle-or-done",
+    "title": "Fixture session",
+    "cwd": "/path/to/repo",
+    "model": "claude-fable-5",
+    "last_activity": "2026-06-10T22:14:03",
+    "latest": {
+      "event": "assistant",
+      "role": "assistant",
+      "items": ["text"],
+      "tools": [],
+      "usage": {"context_pct_est": 12.4}
+    }
+  }
+]
+```
+
+Install the skills into Hermes:
+
+```bash
+bash scripts/install-hermes-skills.sh
+# or preview first:
+# bash scripts/install-hermes-skills.sh --dry-run
+# or keep editable symlinks instead of copies:
+# bash scripts/install-hermes-skills.sh --mode symlink
+# if updating an existing local install after review:
+# bash scripts/install-hermes-skills.sh --replace
+```
+
+By default this installs into `~/.hermes/skills/`. To install into another Hermes profile:
+
+```bash
+HERMES_PROFILE=my-profile bash scripts/install-hermes-skills.sh
+```
+
+Then start a fresh Hermes session and ask:
+
+```text
+Use the claude-desktop-babysitting and agent-session-progress skills. Watch my Claude Code session for <repo/title>. Read logs first, verify before acting, and do not click permission dialogs or publish anything.
+```
+
+For Claw or other agents, copy the directories under `skills/` into that agent's skill/workflow directory, preserving each `SKILL.md` and scripts subdirectory. Also include `AGENTS.md` in context so the consumer sees the safety and validation rules.
 
 Then adapt the watcher prompt:
 

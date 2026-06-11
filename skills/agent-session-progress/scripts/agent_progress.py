@@ -202,11 +202,29 @@ def summarize_codex_event(obj: dict[str, Any]) -> dict[str, Any]:
     }
 
 
+def codex_unavailable_row(reason: str, error: Exception | None = None) -> dict[str, Any]:
+    return {
+        "agent": "codex",
+        "status": "unknown",
+        "title": reason,
+        "cwd": None,
+        "model": None,
+        "provider": None,
+        "last_activity": None,
+        "latest": None,
+        "evidence": str(CODEX_STATE),
+        "error": scrub(error) if error else None,
+    }
+
+
 def discover_codex(limit: int) -> list[dict[str, Any]]:
     if not CODEX_STATE.exists():
         return []
     rows: list[dict[str, Any]] = []
-    con = sqlite3.connect(f"file:{CODEX_STATE}?mode=ro", uri=True)
+    try:
+        con = sqlite3.connect(f"file:{CODEX_STATE}?mode=ro&immutable=1", uri=True)
+    except sqlite3.Error as e:
+        return [codex_unavailable_row("Codex state unavailable", e)]
     try:
         q = """
             select id, rollout_path, updated_at_ms, source, model_provider, cwd, title, model, tokens_used
@@ -232,6 +250,8 @@ def discover_codex(limit: int) -> list[dict[str, Any]]:
                 "thread_id": thread_id,
                 "source": source,
             })
+    except sqlite3.Error as e:
+        return [codex_unavailable_row("Codex state unreadable or schema changed", e)]
     finally:
         con.close()
     return rows
@@ -242,7 +262,24 @@ def main() -> int:
     parser.add_argument("--agent", choices=["all", "claude", "codex"], default="all")
     parser.add_argument("--limit", type=int, default=5)
     parser.add_argument("--json", action="store_true", help="emit JSON instead of human text")
+    parser.add_argument("--home", type=Path, help="override HOME for tests or nonstandard installs")
+    parser.add_argument("--claude-meta-glob", help="override Claude Desktop metadata glob")
+    parser.add_argument("--claude-projects-glob", help="override Claude project transcript glob")
+    parser.add_argument("--codex-state", type=Path, help="override Codex sqlite state path")
     args = parser.parse_args()
+
+    global HOME, CLAUDE_META_GLOB, CLAUDE_PROJECTS_GLOB, CODEX_STATE
+    if args.home:
+        HOME = args.home.expanduser()
+        CLAUDE_META_GLOB = str(HOME / "Library/Application Support/Claude/claude-code-sessions/**/*.json")
+        CLAUDE_PROJECTS_GLOB = str(HOME / ".claude/projects/**/*.jsonl")
+        CODEX_STATE = HOME / ".codex/state_5.sqlite"
+    if args.claude_meta_glob:
+        CLAUDE_META_GLOB = args.claude_meta_glob
+    if args.claude_projects_glob:
+        CLAUDE_PROJECTS_GLOB = args.claude_projects_glob
+    if args.codex_state:
+        CODEX_STATE = args.codex_state.expanduser()
 
     results: list[dict[str, Any]] = []
     if args.agent in ("all", "claude"):
@@ -254,6 +291,10 @@ def main() -> int:
 
     if args.json:
         print(json.dumps(results, indent=2, default=str))
+        return 0
+
+    if not results:
+        print("No Claude/Codex session activity found. This is normal on a fresh machine or unsupported client version.")
         return 0
 
     for r in results[: args.limit if args.agent == "all" else len(results)]:

@@ -1,0 +1,44 @@
+{
+  "name": "claude-desktop-supervisor",
+  "version": "0.1.0",
+  "description": "Agent-friendly skill pack for supervising Claude Desktop, Claude Code, and Fable-style local coding lanes.",
+  "python": {
+    "requires": ">=3.10",
+    "dependencies": "stdlib-only"
+  },
+  "permissions": {
+    "macos": ["Accessibility", "Screen Recording"],
+    "notes": "Required only for GUI Computer Use actions. The progress helper itself is read-only and does not require macOS GUI permissions."
+  },
+  "assumed_local_paths": {
+    "claude_metadata": "~/Library/Application Support/Claude/claude-code-sessions/**/*.json",
+    "claude_transcripts": "~/.claude/projects/**/*.jsonl",
+    "codex_state_default": "~/.codex/state_5.sqlite"
+  },
+  "safety": [
+    "Do not publish raw transcripts.",
+    "Do not click permission dialogs or type secrets.",
+    "Do not post, push, create releases, or change account settings without explicit human scope.",
+    "Use logs first; use UI only for action or verification."
+  ],
+  "skills": [
+    {
+      "name": "claude-desktop-babysitting",
+      "path": "skills/claude-desktop-babysitting",
+      "entry": "SKILL.md",
+      "description": "Supervise Claude Desktop/Claude Code/Fable sessions with logs-first monitoring and guarded Computer Use.",
+      "requires_gui": true
+    },
+    {
+      "name": "agent-session-progress",
+      "path": "skills/agent-session-progress",
+      "entry": "SKILL.md",
+      "scripts": ["scripts/agent_progress.py"],
+      "description": "Read local Claude Code/Codex session stores and emit compact progress summaries without raw transcript dumps.",
+      "requires_gui": false
+    }
+  ],
+  "validation": {
+    "command": "bash scripts/validate.sh"
+  }
+}

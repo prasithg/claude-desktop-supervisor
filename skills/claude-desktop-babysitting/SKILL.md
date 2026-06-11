@@ -6,7 +6,7 @@ author: Hermes Agent
 license: MIT
 metadata:
   hermes:
-    tags: [claude-code, computer-use, overnight, babysitting, autonomous-agents]
+    tags: [claude-code, computer-use, supervision, local-workflows, agent-ops, handoffs]
     related_skills: [agent-session-progress]
 ---
 
