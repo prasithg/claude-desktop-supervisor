@@ -1,0 +1,24 @@
+{
+  "schema_version": 1,
+  "contract": "hermes-scheduler-owner-windows-v1",
+  "producer": {
+    "repository": "https://github.com/NousResearch/hermes-agent",
+    "branch_commit": "eed8ce898aec138691702c491c840fd238c4540a",
+    "introduced_by_commit": "0c73f2e1d7699cd19448b72d12016c14944a3a4e",
+    "path": "cron/owner_identity.py",
+    "sha256": "d4ca8786af5c9b5511fb2bb7ee441fa8976e0ca7c78df1aad66a990bbdab91b7",
+    "publication_state": "isolated-unpushed-branch"
+  },
+  "consumer": {
+    "source": "Hermes Quality Engine C receipt 014",
+    "path": "scripts/audit_cron_scheduler_owner.py",
+    "sha256": "1c48022d4874ada1c89fd081f591ff8f040dbe63a12e0df523711f38c1904659",
+    "source_receipt_sha256": "225b21c86d0c36b766de077d98c05f453a22872cf0d160446f53d88610a8be25",
+    "source_machine_receipt_sha256": "4f12cdc4d21ce16de19dc001c4c74ba848bc86aaf78f213dbb52e42933b95eb4"
+  },
+  "authority": {
+    "metadata_only": true,
+    "safe_for_destructive_recovery": false,
+    "reason": "Native platform parity does not independently prove scheduler-owner absence for a live Hermes store."
+  }
+}
