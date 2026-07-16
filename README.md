@@ -145,6 +145,7 @@ Clone and validate the repo:
 ```bash
 git clone https://github.com/prasithg/claude-desktop-supervisor.git
 cd claude-desktop-supervisor
+python -m pip install --no-deps -r requirements-contracts.txt
 bash scripts/validate.sh
 ```
 
@@ -153,6 +154,24 @@ Run the read-only progress helper:
 ```bash
 python3 skills/agent-session-progress/scripts/agent_progress.py --agent claude --limit 10 --json
 ```
+
+Before moving a compact summary to another destination, ask the pinned
+`agent-knowledge-boundary-contracts` consumer to write a metadata-only receipt:
+
+```bash
+python3 skills/agent-session-progress/scripts/agent_progress.py \
+  --agent claude --limit 10 --json \
+  --export-destination private \
+  --boundary-receipt reports/session-export-boundary.json
+```
+
+Claude/Codex session stores are declared private and not reusable publicly. A
+`--export-destination public` request therefore exits `3` before printing the
+session summaries and records `public_export_denied`. The receipt includes only
+source classes, synthetic row identities, counts, and violations—never titles,
+working directories, transcript paths, or transcript text. The ordinary helper
+path remains standard-library-only; boundary mode uses the full-SHA dependency
+in `requirements-contracts.txt` and CI installs it from scratch.
 
 The helper summarizes local Claude/Codex activity without dumping raw transcript text. Example shape:
 

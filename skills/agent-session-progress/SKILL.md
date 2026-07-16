@@ -44,6 +44,11 @@ python3 scripts/agent_progress.py --agent claude --limit 10 --json
 python3 scripts/agent_progress.py --agent codex --limit 10
 ```
 
+For an explicit export boundary, install the repository's pinned
+`requirements-contracts.txt`, then add `--export-destination private` and
+`--boundary-receipt PATH`. Public export of Claude/Codex session-derived rows
+fails closed before summary output; the receipt contains metadata only.
+
 ## Heuristic States
 
 - active: fresh transcript/metadata and latest events include assistant/tool activity;

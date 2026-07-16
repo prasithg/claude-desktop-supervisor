@@ -8,10 +8,12 @@ from __future__ import annotations
 import argparse
 import datetime as dt
 import glob
+import importlib
 import json
 import os
 import re
 import sqlite3
+import sys
 from pathlib import Path
 from typing import Any
 
@@ -19,6 +21,22 @@ HOME = Path.home()
 CLAUDE_META_GLOB = str(HOME / "Library/Application Support/Claude/claude-code-sessions/**/*.json")
 CLAUDE_PROJECTS_GLOB = str(HOME / ".claude/projects/**/*.jsonl")
 CODEX_STATE = HOME / ".codex/state_5.sqlite"
+
+KNOWLEDGE_CONTRACT_REVISION = "52bbea3cfde10f60e78c7c74e82dee00e7dcc6ba"
+SESSION_SOURCE_POLICIES = {
+    "claude-code": {
+        "id": "claude-session-store",
+        "enabled": True,
+        "sensitivity": "private",
+        "public_reuse": False,
+    },
+    "codex": {
+        "id": "codex-session-store",
+        "enabled": True,
+        "sensitivity": "private",
+        "public_reuse": False,
+    },
+}
 
 SECRET_RE = re.compile(
     r"(?i)(api[_-]?key|token|secret|password|authorization|bearer|cookie)\s*[:=]\s*\S+"
@@ -64,6 +82,70 @@ def classify(age: float | None, latest: dict[str, Any] | None) -> str:
     if age <= 300:
         return "recently-active"
     return "idle-or-done"
+
+
+def build_export_boundary_receipt(
+    rows: list[dict[str, Any]],
+    *,
+    destination: str,
+    as_of: str,
+) -> dict[str, Any]:
+    """Validate an export destination without copying session content into the receipt.
+
+    The optional consumer dependency is imported only for this explicit boundary
+    check, so the default read-only progress helper remains stdlib-only.
+    """
+    evaluate_contract = importlib.import_module(
+        "knowledge_ingestion_contracts"
+    ).evaluate_contract
+
+    if destination not in {"private", "internal", "public"}:
+        raise ValueError(f"unsupported export destination: {destination!r}")
+
+    sources: list[dict[str, Any]] = []
+    source_ids: set[str] = set()
+    items: list[dict[str, Any]] = []
+    claims: list[dict[str, Any]] = []
+    for index, row in enumerate(rows, start=1):
+        agent = row.get("agent")
+        if not isinstance(agent, str):
+            raise ValueError(f"unsupported agent source: {agent!r}")
+        policy = SESSION_SOURCE_POLICIES.get(agent)
+        if policy is None:
+            raise ValueError(f"unsupported agent source: {agent!r}")
+        source_id = policy["id"]
+        if source_id not in source_ids:
+            sources.append(dict(policy))
+            source_ids.add(source_id)
+        slug = f"session-summary-{index:04d}"
+        items.append(
+            {
+                "source_id": source_id,
+                "slug": slug,
+                "observed_at": as_of,
+                "expires_at": None,
+            }
+        )
+        claims.append(
+            {
+                "id": f"export-row-{index:04d}",
+                "destination": destination,
+                "evidence": [{"source_id": source_id, "slug": slug}],
+            }
+        )
+
+    contract = {"sources": sources, "items": items, "claims": claims}
+    violations = evaluate_contract(contract, as_of)
+    return {
+        "schema_version": 1,
+        "contract": "agent-knowledge-boundary-contracts",
+        "contract_revision": KNOWLEDGE_CONTRACT_REVISION,
+        "destination": destination,
+        "row_count": len(rows),
+        "allowed": not violations,
+        "violation_codes": [entry["code"] for entry in violations],
+        "violations": violations,
+    }
 
 
 def tail_jsonl(path: str | Path, max_lines: int = 20) -> list[dict[str, Any]]:
@@ -266,6 +348,16 @@ def main() -> int:
     parser.add_argument("--claude-meta-glob", help="override Claude Desktop metadata glob")
     parser.add_argument("--claude-projects-glob", help="override Claude project transcript glob")
     parser.add_argument("--codex-state", type=Path, help="override Codex sqlite state path")
+    parser.add_argument(
+        "--export-destination",
+        choices=["private", "internal", "public"],
+        help="validate the summary destination with agent-knowledge-boundary-contracts",
+    )
+    parser.add_argument(
+        "--boundary-receipt",
+        type=Path,
+        help="write a metadata-only export boundary receipt (requires --export-destination)",
+    )
     args = parser.parse_args()
 
     global HOME, CLAUDE_META_GLOB, CLAUDE_PROJECTS_GLOB, CODEX_STATE
@@ -288,6 +380,30 @@ def main() -> int:
         results.extend(discover_codex(args.limit))
 
     results.sort(key=lambda r: r.get("last_activity") or "", reverse=True)
+
+    if args.boundary_receipt and not args.export_destination:
+        parser.error("--boundary-receipt requires --export-destination")
+    if args.export_destination:
+        as_of = dt.datetime.now(dt.timezone.utc).isoformat()
+        try:
+            receipt = build_export_boundary_receipt(
+                results,
+                destination=args.export_destination,
+                as_of=as_of,
+            )
+        except (ImportError, ValueError) as exc:
+            print(f"export boundary unavailable: {exc}", file=sys.stderr)
+            return 3
+        if args.boundary_receipt:
+            args.boundary_receipt.parent.mkdir(parents=True, exist_ok=True)
+            args.boundary_receipt.write_text(
+                json.dumps(receipt, indent=2, sort_keys=True) + "\n",
+                encoding="utf-8",
+            )
+        if not receipt["allowed"]:
+            if not args.boundary_receipt:
+                print(json.dumps(receipt, sort_keys=True), file=sys.stderr)
+            return 3
 
     if args.json:
         print(json.dumps(results, indent=2, default=str))
