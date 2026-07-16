@@ -6,6 +6,9 @@ cd "$(dirname "${BASH_SOURCE[0]}")/.."
 python3 -m py_compile skills/agent-session-progress/scripts/agent_progress.py
 python3 skills/agent-session-progress/scripts/agent_progress.py --help >/dev/null
 python3 scripts/smoke_agent_progress.py
+python3 -m py_compile skills/agent-session-progress/scripts/terminal_stream_guard.py
+python3 skills/agent-session-progress/scripts/terminal_stream_guard.py --help >/dev/null
+python3 scripts/smoke_terminal_stream_guard.py
 
 python3 - <<'PY'
 from pathlib import Path
@@ -33,7 +36,7 @@ risky = [
 ]
 bad = []
 for path in Path('.').rglob('*'):
-    if path.is_dir() or '.git' in path.parts:
+    if path.is_dir() or '.git' in path.parts or '.venv' in path.parts:
         continue
     rel = str(path)
     text = path.read_text(errors='ignore')

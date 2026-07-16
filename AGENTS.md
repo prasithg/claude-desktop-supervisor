@@ -4,7 +4,7 @@ This repository packages a local supervision workflow for Claude Desktop, Claude
 
 ## Environment and permission contract
 
-- Python: 3.10+; helper scripts are stdlib-only.
+- Python: 3.10+. The progress helper is stdlib-only; the terminal stream guard consumes the full-SHA dependency in `requirements-contracts.txt`.
 - macOS GUI control: Accessibility + Screen Recording are required only when using Computer Use to verify or act in Claude Desktop.
 - Claude paths assumed by default:
   - `~/Library/Application Support/Claude/claude-code-sessions/**/*.json`
@@ -29,6 +29,7 @@ This repository packages a local supervision workflow for Claude Desktop, Claude
 Run before proposing changes:
 
 ```bash
+python3 -m pip install --no-deps -r requirements-contracts.txt
 bash scripts/validate.sh
 ```
 
@@ -38,6 +39,7 @@ Equivalent minimal checks:
 python3 -m py_compile skills/agent-session-progress/scripts/agent_progress.py
 python3 skills/agent-session-progress/scripts/agent_progress.py --help
 python3 scripts/smoke_agent_progress.py
+python3 scripts/smoke_terminal_stream_guard.py
 ```
 
 If tests are unavailable, say so explicitly.
