@@ -6,6 +6,7 @@ cd "$(dirname "${BASH_SOURCE[0]}")/.."
 python3 -m py_compile skills/agent-session-progress/scripts/agent_progress.py
 python3 skills/agent-session-progress/scripts/agent_progress.py --help >/dev/null
 python3 scripts/smoke_agent_progress.py
+python3 -B integrations/hermes-owner-receipt/test_native_windows_contract.py
 
 python3 - <<'PY'
 from pathlib import Path
