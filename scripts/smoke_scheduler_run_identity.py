@@ -28,7 +28,8 @@ def fixture_env() -> dict[str, str]:
         "GITHUB_WORKFLOW": "scheduler-run-identity",
         "GITHUB_WORKFLOW_REF": "prasithg/claude-desktop-supervisor/.github/workflows/scheduler-run-identity.yml@refs/pull/3/merge",
         "GITHUB_EVENT_NAME": "pull_request",
-        "GITHUB_SHA": "b" * 40,
+        "GITHUB_SHA": "e" * 40,
+        "PROVIDER_HEAD_SHA": "b" * 40,
         "GITHUB_REF": "refs/pull/3/merge",
         "UNTRUSTED_FREE_FORM": "must not enter the subject",
     }
@@ -50,6 +51,8 @@ def main() -> int:
     assert payload["kind"] == "github_actions_run_identity"
     assert payload["run_id"] == 30000000001
     assert payload["run_attempt"] == 1
+    assert payload["provider_head_sha"] == "b" * 40
+    assert payload["source_digest"] == "e" * 40
     assert "UNTRUSTED_FREE_FORM" not in json.dumps(payload)
     assert "must not enter" not in json.dumps(payload)
 

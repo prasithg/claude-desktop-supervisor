@@ -25,7 +25,8 @@ SUBJECT_FIELDS = {
     "workflow_name",
     "workflow_ref",
     "event",
-    "head_sha",
+    "provider_head_sha",
+    "source_digest",
     "source_ref",
 }
 
@@ -49,7 +50,8 @@ def build_subject(env: Mapping[str, str]) -> dict[str, object]:
     workflow_name = required(env, "GITHUB_WORKFLOW")
     workflow_ref = required(env, "GITHUB_WORKFLOW_REF")
     event = required(env, "GITHUB_EVENT_NAME")
-    head_sha = required(env, "GITHUB_SHA")
+    source_digest = required(env, "GITHUB_SHA")
+    provider_head_sha = required(env, "PROVIDER_HEAD_SHA")
     source_ref = required(env, "GITHUB_REF")
     if not REPOSITORY.fullmatch(repository):
         raise ValueError("GITHUB_REPOSITORY must be owner/name")
@@ -62,8 +64,10 @@ def build_subject(env: Mapping[str, str]) -> dict[str, object]:
         raise ValueError("workflow ref must bind the exact GITHUB_REF")
     if not workflow_path.startswith(f"{repository}/.github/workflows/"):
         raise ValueError("workflow ref must bind the exact GITHUB_REPOSITORY")
-    if not SHA1.fullmatch(head_sha):
+    if not SHA1.fullmatch(source_digest):
         raise ValueError("GITHUB_SHA must be a lowercase 40-character Git SHA")
+    if not SHA1.fullmatch(provider_head_sha):
+        raise ValueError("PROVIDER_HEAD_SHA must be a lowercase 40-character Git SHA")
     return {
         "schema_version": 1,
         "kind": "github_actions_run_identity",
@@ -73,7 +77,8 @@ def build_subject(env: Mapping[str, str]) -> dict[str, object]:
         "workflow_name": workflow_name,
         "workflow_ref": workflow_ref,
         "event": event,
-        "head_sha": head_sha,
+        "provider_head_sha": provider_head_sha,
+        "source_digest": source_digest,
         "source_ref": source_ref,
     }
 
