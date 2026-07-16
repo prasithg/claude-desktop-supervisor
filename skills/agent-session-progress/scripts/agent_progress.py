@@ -14,6 +14,7 @@ import os
 import re
 import sqlite3
 import sys
+from importlib import metadata as importlib_metadata
 from pathlib import Path
 from typing import Any
 
@@ -23,6 +24,9 @@ CLAUDE_PROJECTS_GLOB = str(HOME / ".claude/projects/**/*.jsonl")
 CODEX_STATE = HOME / ".codex/state_5.sqlite"
 
 KNOWLEDGE_CONTRACT_REVISION = "52bbea3cfde10f60e78c7c74e82dee00e7dcc6ba"
+KNOWLEDGE_CONTRACT_URL = (
+    "https://github.com/prasithg/agent-knowledge-boundary-contracts.git"
+)
 SESSION_SOURCE_POLICIES = {
     "claude-code": {
         "id": "claude-session-store",
@@ -84,6 +88,31 @@ def classify(age: float | None, latest: dict[str, Any] | None) -> str:
     return "idle-or-done"
 
 
+def verify_contract_dependency() -> str:
+    """Return the installed producer SHA or fail closed on provenance drift."""
+    try:
+        distribution = importlib_metadata.distribution(
+            "agent-knowledge-boundary-contracts"
+        )
+        direct_url_text = distribution.read_text("direct_url.json")
+        direct_url = json.loads(direct_url_text) if direct_url_text else {}
+    except (importlib_metadata.PackageNotFoundError, json.JSONDecodeError) as exc:
+        raise RuntimeError(f"contract dependency provenance unavailable: {exc}") from exc
+
+    installed_url = direct_url.get("url")
+    installed_revision = direct_url.get("vcs_info", {}).get("commit_id")
+    if (
+        installed_url != KNOWLEDGE_CONTRACT_URL
+        or installed_revision != KNOWLEDGE_CONTRACT_REVISION
+    ):
+        raise RuntimeError(
+            "contract dependency provenance mismatch: "
+            f"expected {KNOWLEDGE_CONTRACT_URL}@{KNOWLEDGE_CONTRACT_REVISION}, "
+            f"got {installed_url}@{installed_revision}"
+        )
+    return installed_revision
+
+
 def build_export_boundary_receipt(
     rows: list[dict[str, Any]],
     *,
@@ -95,6 +124,7 @@ def build_export_boundary_receipt(
     The optional consumer dependency is imported only for this explicit boundary
     check, so the default read-only progress helper remains stdlib-only.
     """
+    installed_revision = verify_contract_dependency()
     evaluate_contract = importlib.import_module(
         "knowledge_ingestion_contracts"
     ).evaluate_contract
@@ -139,7 +169,7 @@ def build_export_boundary_receipt(
     return {
         "schema_version": 1,
         "contract": "agent-knowledge-boundary-contracts",
-        "contract_revision": KNOWLEDGE_CONTRACT_REVISION,
+        "contract_revision": installed_revision,
         "destination": destination,
         "row_count": len(rows),
         "allowed": not violations,
@@ -391,7 +421,7 @@ def main() -> int:
                 destination=args.export_destination,
                 as_of=as_of,
             )
-        except (ImportError, ValueError) as exc:
+        except (ImportError, RuntimeError, ValueError) as exc:
             print(f"export boundary unavailable: {exc}", file=sys.stderr)
             return 3
         if args.boundary_receipt:

@@ -9,6 +9,7 @@ import sys
 import tempfile
 import unittest
 from pathlib import Path
+from unittest import mock
 
 ROOT = Path(__file__).resolve().parents[1]
 MOD = ROOT / "skills/agent-session-progress/scripts/agent_progress.py"
@@ -72,6 +73,24 @@ class KnowledgeBoundaryConsumerTests(unittest.TestCase):
                 destination="private",
                 as_of="2026-07-16T04:15:00Z",
             )
+
+    def test_installed_contract_must_match_receipt_revision(self) -> None:
+        self.assertEqual(
+            agent_progress.verify_contract_dependency(),
+            agent_progress.KNOWLEDGE_CONTRACT_REVISION,
+        )
+
+        fake_distribution = mock.Mock()
+        fake_distribution.read_text.return_value = json.dumps(
+            {"vcs_info": {"commit_id": "0" * 40}}
+        )
+        with mock.patch.object(
+            agent_progress.importlib_metadata,
+            "distribution",
+            return_value=fake_distribution,
+        ):
+            with self.assertRaisesRegex(RuntimeError, "provenance mismatch"):
+                agent_progress.verify_contract_dependency()
 
     def test_cli_public_export_writes_denial_receipt_without_summary_output(self) -> None:
         with tempfile.TemporaryDirectory() as temp_dir:
