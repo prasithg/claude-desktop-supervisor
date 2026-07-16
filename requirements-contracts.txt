@@ -1,0 +1,3 @@
+# Optional downstream conformance dependency for session export boundaries.
+# Pinned to the Night 6 producer revision so fresh installs are reproducible.
+agent-knowledge-boundary-contracts @ git+https://github.com/prasithg/agent-knowledge-boundary-contracts.git@52bbea3cfde10f60e78c7c74e82dee00e7dcc6ba

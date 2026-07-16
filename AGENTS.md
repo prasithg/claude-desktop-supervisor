@@ -4,7 +4,8 @@ This repository packages a local supervision workflow for Claude Desktop, Claude
 
 ## Environment and permission contract
 
-- Python: 3.10+; helper scripts are stdlib-only.
+- Python: 3.10+; the default helper path is stdlib-only. Explicit export-boundary
+  mode uses the full-SHA dependency in `requirements-contracts.txt`.
 - macOS GUI control: Accessibility + Screen Recording are required only when using Computer Use to verify or act in Claude Desktop.
 - Claude paths assumed by default:
   - `~/Library/Application Support/Claude/claude-code-sessions/**/*.json`
@@ -29,6 +30,7 @@ This repository packages a local supervision workflow for Claude Desktop, Claude
 Run before proposing changes:
 
 ```bash
+python3 -m pip install --no-deps -r requirements-contracts.txt
 bash scripts/validate.sh
 ```
 
