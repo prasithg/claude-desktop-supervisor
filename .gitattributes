@@ -1,0 +1,2 @@
+integrations/hermes-owner-receipt/producer/*.py text eol=lf
+integrations/hermes-owner-receipt/consumer/*.py text eol=lf
