@@ -77,7 +77,7 @@ Recommended setup:
 - Hermes Computer Use enabled, with macOS Accessibility and Screen Recording permissions granted.
 - Claude Desktop and/or Claude Code installed.
 - For Fable-style long-running runs, a Claude Max plan is strongly recommended. These workflows can burn tokens quickly, especially with large context windows and repeated tool use.
-- Python 3.10+; helper scripts are stdlib-only (no `pip install` needed).
+- Python 3.10+. The progress helper is stdlib-only. The optional terminal continuity guard uses one full-SHA-pinned, dependency-free contract package.
 - A git repo or local project for the worker lane to operate on.
 
 Optional but useful:
@@ -145,8 +145,22 @@ Clone and validate the repo:
 ```bash
 git clone https://github.com/prasithg/claude-desktop-supervisor.git
 cd claude-desktop-supervisor
+python3 -m pip install --no-deps -r requirements-contracts.txt
 bash scripts/validate.sh
 ```
+
+Check a captured JSONL terminal stream without printing its payload:
+
+```bash
+python3 skills/agent-session-progress/scripts/terminal_stream_guard.py EVENTS.jsonl
+```
+
+The guard consumes cumulative UTF-16 frame offsets and authoritative snapshot
+high-water marks from the pinned
+[`lossless-terminal-recovery-contract`](https://github.com/prasithg/lossless-terminal-recovery-contract).
+It emits a metadata-only continuity receipt, exits `3` when a detected gap has
+not received a replay snapshot, rejects partial overlap, and verifies the
+installed contract's exact Git revision before processing the stream.
 
 Run the read-only progress helper:
 

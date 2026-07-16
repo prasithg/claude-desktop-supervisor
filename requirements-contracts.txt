@@ -1,0 +1,1 @@
+lossless-terminal-recovery-contract @ git+https://github.com/prasithg/lossless-terminal-recovery-contract.git@837659dab007930a4f92dec166722614c0abfe8f

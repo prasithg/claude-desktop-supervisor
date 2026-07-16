@@ -1,7 +1,7 @@
 ---
 name: agent-session-progress
 description: Use when reading local Claude Code or Codex session logs for compact, read-only progress tracking without dumping raw transcripts. Discovers recent sessions, maps metadata to transcript paths, summarizes latest event/tool signals, and estimates context usage.
-version: 1.0.0
+version: 1.1.0
 author: Hermes Agent
 license: MIT
 metadata:
@@ -43,6 +43,21 @@ Read local agent session stores to understand what Claude Code or Codex is doing
 python3 scripts/agent_progress.py --agent claude --limit 10 --json
 python3 scripts/agent_progress.py --agent codex --limit 10
 ```
+
+## Stream continuity receipt
+
+For a captured terminal event stream, use the bundled guard after installing
+`requirements-contracts.txt` from the repository root:
+
+```bash
+python3 scripts/terminal_stream_guard.py EVENTS.jsonl
+```
+
+Frame events carry `data` plus a cumulative UTF-16 `end_offset`; snapshot
+events carry authoritative `data` plus `high_water`. A gap blocks live append
+until a snapshot arrives. The command exits 3 when replay is still required
+and emits only counts, offsets, status, and pinned contract revision—never the
+terminal payload. Unknown events and dependency provenance fail closed.
 
 ## Heuristic States
 
