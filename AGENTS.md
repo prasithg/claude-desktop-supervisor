@@ -22,25 +22,11 @@ This repository packages a local supervision workflow for Claude Desktop, Claude
 - Never click permission dialogs, type secrets, submit payments, post publicly, push code, create releases, or modify account settings without explicit human scope.
 - Map target sessions by exact title, cwd, and/or session id before acting.
 - Do not prompt-spam a session that is already running.
-- Prefer local, reversible, testable work. Escalate when judgment, secrets, permissions, or external/public actions are required.
+- Local, reversible, testable work proceeds without asking; escalate when secrets, permissions, or external/public actions are involved.
 
 ## Validation
 
-Run before proposing changes:
-
-```bash
-bash scripts/validate.sh
-```
-
-Equivalent minimal checks:
-
-```bash
-python3 -m py_compile skills/agent-session-progress/scripts/agent_progress.py
-python3 skills/agent-session-progress/scripts/agent_progress.py --help
-python3 scripts/smoke_agent_progress.py
-```
-
-If tests are unavailable, say so explicitly.
+`bash scripts/validate.sh` is the gate for every change: it compiles and smoke-tests `agent_progress.py`, runs the Hermes owner-receipt contract test, and scans the tree for leaked tokens, private home paths, and risky phrasing. Run it before proposing or finishing a change. If it cannot run, the report names the missing prerequisite and states that the change is unvalidated.
 
 ## Repo intent
 
